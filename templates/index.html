@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle de Bloqueio Real</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Controle de Bloqueio Real</h1>
+        <div id="status-message" class="status-message"></div>
+        <div id="warning-section">
+            <div class="warning-box">
+                <h2>⚠️ ATENÇÃO: RISCO DE BLOQUEIO REAL ⚠️</h2>
+                <p>Ativar o bloqueio real irá <strong>interromper pacotes de rede</strong> com base nas regras definidas. Isso pode causar:</p>
+                <ul>
+                    <li>Perda de conexão com a internet;</li>
+                    <li>Interrupção de serviços como VPNs, servidores ou aplicativos;</li>
+                    <li>Problemas em comunicações críticas;</li>
+                    <li>Impacto em outros dispositivos na mesma rede.</li>
+                </ul>
+                <p><strong>Confirme que você entende os riscos antes de prosseguir.</strong></p>
+                <label>
+                    <input type="checkbox" id="confirm-checkbox"> Eu entendo os riscos e desejo prosseguir
+                </label>
+            </div>
+        </div>
+        <button id="toggle-button" onclick="toggleBlocking()">Ativar Bloqueio Real</button>
+        <div id="error-message" class="error-message"></div>
+    </div>
+
+    <script>
+        let blockingEnabled = false;
+
+        // Função para atualizar a interface com base no estado do bloqueio
+        function updateUI() {
+            const statusMessage = document.getElementById("status-message");
+            const toggleButton = document.getElementById("toggle-button");
+            const warningSection = document.getElementById("warning-section");
+            const errorMessage = document.getElementById("error-message");
+
+            if (blockingEnabled) {
+                statusMessage.textContent = "🚨 Bloqueio Real Ativado! Pacotes estão sendo bloqueados conforme as regras definidas.";
+                statusMessage.style.backgroundColor = "#ffcccc";
+                toggleButton.textContent = "Desativar Bloqueio Real";
+                warningSection.style.display = "none";
+            } else {
+                statusMessage.textContent = "ℹ️ Bloqueio Real Desativado. Clique abaixo para ativar (cuidado!).";
+                statusMessage.style.backgroundColor = "#e6f3ff";
+                toggleButton.textContent = "Ativar Bloqueio Real";
+                warningSection.style.display = "block";
+            }
+            errorMessage.textContent = "";
+        }
+
+        // Função para buscar o estado inicial do bloqueio
+        async function fetchBlockingStatus() {
+            try {
+                const response = await fetch("/status");
+                if (!response.ok) {
+                    throw new Error("Falha ao buscar o estado do bloqueio");
+                }
+                const data = await response.json();
+                blockingEnabled = data.enabled;
+                updateUI();
+            } catch (error) {
+                const errorMessage = document.getElementById("error-message");
+                errorMessage.textContent = `❌ Erro ao carregar o estado inicial: ${error.message}`;
+            }
+        }
+
+        // Função para alternar o estado do bloqueio
+        async function toggleBlocking() {
+            const confirmCheckbox = document.getElementById("confirm-checkbox");
+            const errorMessage = document.getElementById("error-message");
+
+            // Verifica se o checkbox está marcado ao tentar ativar o bloqueio
+            if (!blockingEnabled && !confirmCheckbox.checked) {
+                errorMessage.textContent = "⚠️ Você precisa marcar a caixa de confirmação para prosseguir.";
+                return;
+            }
+
+            try {
+                const response = await fetch("/toggle-blocking", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ enabled: !blockingEnabled })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    blockingEnabled = data.enabled;
+                    updateUI();
+                    alert(data.message);
+                } else {
+                    errorMessage.textContent = `❌ Erro: ${data.detail}`;
+                }
+            } catch (error) {
+                errorMessage.textContent = `❌ Erro ao comunicar com o servidor: ${error.message}`;
+            }
+        }
+
+        // Inicializa a UI ao carregar a página
+        window.onload = function() {
+            fetchBlockingStatus();
+        };
+    </script>
+</body>
+</html>
